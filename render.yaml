@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: bcd-to-excess3-simulator
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
