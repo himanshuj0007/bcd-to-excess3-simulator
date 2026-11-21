@@ -727,6 +727,16 @@
       font-weight: 700;
     }
 
+    .badge-fail {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #fee2e2;
+      color: #b91c1c;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     /* Grid for Boolean Expressions & Viva Qs */
     .two-col-grid {
       display: grid;
@@ -1123,7 +1133,7 @@
       ['tCD',    ['C', 'D'],              "G12: (C·D)'"],
       ['tNCND',  ['nC', 'nD'],            "G13: (C'·D')'"],
       ['Y',      ['tCD', 'tNCND'],        "G14: OUT Y"],
-      ['Z',      ['nD', 'nD'],            "G15: OUT Z"]
+      ['Z',      ['D', 'D'],              "G15: OUT Z"]
     ];
 
     const inputNames = ['A', 'B', 'C', 'D'];
@@ -1293,7 +1303,7 @@
           <td style="font-family: var(--font-mono);">${bcdStr}</td>
           <td style="font-family: var(--font-mono); font-weight:700; color: #2563eb;">${expectedXS3}</td>
           <td style="font-family: var(--font-mono); font-weight:700;">${circuitXS3}</td>
-          <td><span class="badge-pass">${isPass ? '✓ PASS' : '✗ FAIL'}</span></td>
+          <td><span class="${isPass ? 'badge-pass' : 'badge-fail'}">${isPass ? '✓ PASS' : '✗ FAIL'}</span></td>
         `;
         tbody.appendChild(row);
       }
