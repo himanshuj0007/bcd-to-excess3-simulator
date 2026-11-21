@@ -1,21 +1,1497 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BCD to Excess-3 — NAND Only Lab</title><style>:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#18283d;background:#f3f7fc}*{box-sizing:border-box}body{margin:0}header{background:#123d75;color:white;padding:24px max(20px,calc((100vw - 1120px)/2))}h1{margin:0;font-size:clamp(22px,3vw,34px)}header p{margin:8px 0 0;color:#dbeafe}.wrap{max-width:1120px;margin:auto;padding:20px;display:grid;gap:18px}.card{background:white;border:1px solid #d9e4f2;border-radius:16px;padding:20px;box-shadow:0 4px 16px #17365b0b}h2{font-size:20px;margin:0 0 14px}.row{display:flex;flex-wrap:wrap;gap:20px;align-items:center}.switches,.outputs{display:flex;gap:12px;flex-wrap:wrap}.switch,.output{border:1px solid #c8d5e6;border-radius:12px;padding:12px;text-align:center;min-width:82px;background:#f8fbff}.switch button{display:block;margin:8px auto 0;padding:10px 22px;border:0;border-radius:9px;background:#64748b;color:white;font-size:20px;font-weight:bold;cursor:pointer}.switch button.on{background:#15803d}.output strong{display:block;font-size:28px;margin-top:8px}.led{display:inline-block;width:14px;height:14px;border-radius:50%;background:#64748b;margin-left:5px}.led.on{background:#22c55e;box-shadow:0 0 12px #22c55e}.status{padding:12px;border-radius:9px;background:#e9f6ef;color:#166534;font-weight:600}.status.bad{background:#fff0ef;color:#b42318}button.action{border:0;border-radius:9px;background:#1455a0;color:white;padding:10px 14px;cursor:pointer;font-weight:600}button.secondary{background:#e7effb;color:#174477}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:9px 7px;text-align:center;border-bottom:1px solid #e5eaf1}th{background:#edf4ff}tr.active{background:#d8f9df}tr.invalid{background:#fff2e7}.scroll{overflow-x:auto}.diagram{width:100%;height:auto;background:#fbfdff;border:1px solid #dbe7f4;border-radius:12px}.wire{stroke:#52708f;stroke-width:2;fill:none}.gate{fill:#e9f2ff;stroke:#245b9e;stroke-width:1.5}.gateText{font-size:11px;fill:#174477;font-weight:700}.node{font-size:12px;fill:#243b53}.value{font-size:12px;font-weight:700;fill:#047857}.note{font-size:13px;color:#53657c;line-height:1.6}.formula{font-family:ui-monospace,monospace;background:#f2f6fc;border-radius:8px;padding:12px;line-height:1.9;overflow:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:740px){.grid{grid-template-columns:1fr}.wrap{padding:12px}.card{padding:14px}.switch,.output{min-width:65px;padding:8px}}@media print{header{background:white;color:black}.action,.switch button{display:none}.card{box-shadow:none}body{background:white}}</style></head><body><header><h1>BCD → Excess-3 Converter</h1><p>BCA 1st Year Digital Electronics Practical • NAND gates only • Live input/output verification</p></header><main class="wrap"><section class="card"><h2>1. Change the BCD inputs</h2><div class="row"><div><div class="switches" id="switches"></div><p class="note">Click each switch to toggle 0 / 1. Inputs A B C D have weights 8, 4, 2, 1.</p></div><div><label for="digit">Quick select decimal digit: </label><select id="digit" style="padding:9px;border-radius:8px;border:1px solid #b5c7dd"></select><p><button class="action secondary" id="reset">Reset to 0000</button> <button class="action" id="next">Next digit</button></p></div></div><h2>Excess-3 outputs</h2><div class="outputs" id="outputs"></div><p id="status" class="status"></p></section><section class="card"><h2>2. Complete NAND-only circuit (live gate network)</h2><p class="note">Every box below represents a NAND gate. A gate with both inputs tied together acts as an inverter. Multi-input NAND gates are shown explicitly and can be decomposed into 2-input NAND gates if needed.</p><svg id="diagram" class="diagram" viewBox="0 0 1060 640" role="img" aria-label="NAND-only gate network showing inputs, intermediate gate signals and Excess-3 outputs"></svg><p class="note">The network is a logically correct gate-level representation, with each NAND gate's current output displayed. Connections are specified in the table below to avoid ambiguity at wire crossings.</p><div class="scroll"><table><thead><tr><th>Gate</th><th>NAND inputs</th><th>Signal</th><th>Live output</th></tr></thead><tbody id="netlist"></tbody></table></div></section><div class="grid"><section class="card"><h2>3. Boolean expressions</h2><div class="formula">W = A + BC + BD<br>X = B'C + B'D + BC'D'<br>Y = CD + C'D'<br>Z = D'</div><p class="note">These equations are minimized using don't-care input codes 1010–1111. The actual implementation uses NAND operations exclusively.</p></section><section class="card"><h2>4. Practical steps</h2><ol class="note"><li>Select decimal digits 0 through 9.</li><li>Observe BCD input A B C D.</li><li>Verify NAND network outputs W X Y Z.</li><li>Compare results with the truth table.</li><li>Record the result: Excess-3 = BCD + 0011.</li></ol><button class="action" onclick="window.print()">Print practical sheet</button></section></div><section class="card"><h2>5. Truth table — automatic verification</h2><div class="scroll"><table><thead><tr><th>Decimal</th><th>BCD input</th><th>Expected Excess-3</th><th>NAND circuit output</th><th>Check</th></tr></thead><tbody id="truth"></tbody></table></div><p class="note">Input combinations 1010–1111 are invalid BCD digits and are treated as don't-cares; their outputs are not specified by the practical.</p></section></main><script>
-const defs=[['nA',['A','A']],['nB',['B','B']],['nC',['C','C']],['nD',['D','D']],['tBC',['B','C']],['tBD',['B','D']],['W',['nA','tBC','tBD']],['tBNC',['nB','C']],['tBND',['nB','D']],['tBCND',['B','nC','nD']],['X',['tBNC','tBND','tBCND']],['tCD',['C','D']],['tNCND',['nC','nD']],['Y',['tCD','tNCND']],['Z',['D','D']]];
-let current=0;
-const fmt=n=>n.toString(2).padStart(4,'0');
-function simulate(n){const v={A:(n>>3)&1,B:(n>>2)&1,C:(n>>1)&1,D:n&1};for(const [id,ins] of defs)v[id]=Number(!ins.every(x=>v[x]===1));return v}
-const names=['A','B','C','D'];const outputs=['W','X','Y','Z'];const select=document.getElementById('digit');for(let i=0;i<10;i++){const o=document.createElement('option');o.value=i;o.textContent=i;select.append(o)}
-for(const k of names){const d=document.createElement('div');d.className='switch';d.innerHTML=`<b>${k}</b><button type="button" id="sw${k}" aria-label="Toggle input ${k}">0</button>`;document.getElementById('switches').append(d);d.querySelector('button').onclick=()=>{current^=1<<(3-names.indexOf(k));update()}}
-for(const k of outputs){const d=document.createElement('div');d.className='output';d.innerHTML=`<b>${k}</b><strong id="out${k}">0</strong><span class="led" id="led${k}"></span>`;document.getElementById('outputs').append(d)}
-select.onchange=()=>{current=+select.value;update()};document.getElementById('reset').onclick=()=>{current=0;update()};document.getElementById('next').onclick=()=>{current=(current+1)%10;update()};
-function draw(v){const svg=document.getElementById('diagram');let html='';const rows=[...names,...defs.map(x=>x[0])];const yOf={};rows.forEach((id,i)=>yOf[id]=25+i*31);const xOf={};names.forEach(id=>xOf[id]=55);defs.forEach(([id],i)=>xOf[id]=i<4?235: i<7?455: i<11?670:890);
-// Gate rows are laid out in four successive logical columns. W/X/Y/Z outputs are displayed in a separate output rail.
-const stage={nA:1,nB:1,nC:1,nD:1,tBC:1,tBD:1,tBNC:1,tBND:1,tBCND:1,tCD:1,tNCND:1,W:2,X:2,Y:2,Z:2};
-const gates=defs.map(x=>x[0]);const positions={};const colLists=[[...names],['nA','nB','nC','nD','tBC','tBD','tBNC','tBND','tBCND','tCD','tNCND'],['W','X','Y','Z']];const colX=[35,435,870];colLists.forEach((list,col)=>list.forEach((id,i)=>positions[id]={x:colX[col],y:col===1?32+i*50:col===2?90+i*130:125+i*100}));
-// Lines use elbow routes. Gate input identities are printed inside each gate, making wiring explicit.
-for(const [id,ins] of defs){const p=positions[id];for(let j=0;j<ins.length;j++){const q=positions[ins[j]];if(!q)continue;const startX=q.x+(names.includes(ins[j])?62:118);const endX=p.x;const endY=p.y+22+(j-(ins.length-1)/2)*8;const midX=startX+Math.max(12,(endX-startX)/2);html+=`<path class="wire" opacity=".35" d="M${startX} ${q.y+19} H${midX} V${endY} H${endX}"/>`}}
-for(const id of names){const p=positions[id];html+=`<rect x="${p.x}" y="${p.y}" width="62" height="38" rx="8" fill="${v[id]?'#dcfce7':'#e5e7eb'}" stroke="#7292b2"/><text x="${p.x+31}" y="${p.y+24}" text-anchor="middle" class="node">${id} = ${v[id]}</text>`}
-for(const [id,ins] of defs){const p=positions[id];html+=`<rect x="${p.x}" y="${p.y}" width="118" height="44" rx="8" class="gate"/><text x="${p.x+59}" y="${p.y+17}" text-anchor="middle" class="gateText">${id} = NAND</text><text x="${p.x+59}" y="${p.y+31}" text-anchor="middle" class="node">(${ins.join(', ')})</text><circle cx="${p.x+124}" cy="${p.y+22}" r="5" fill="${v[id]?'#16a34a':'#64748b'}"/><text x="${p.x+134}" y="${p.y+26}" class="value">${v[id]}</text>`}
-svg.innerHTML=html;}
-function update(){const v=simulate(current);for(const k of names){const el=document.getElementById('sw'+k);el.textContent=v[k];el.classList.toggle('on',!!v[k]);el.setAttribute('aria-pressed',!!v[k])}for(const k of outputs){document.getElementById('out'+k).textContent=v[k];document.getElementById('led'+k).classList.toggle('on',!!v[k])}const valid=current<10;const actual=outputs.map(k=>v[k]).join('');const expected=valid?fmt(current+3):'—';const status=document.getElementById('status');status.classList.toggle('bad',!valid);status.textContent=valid?`Decimal ${current} | BCD ${fmt(current)} | NAND output ${actual} | Expected ${expected} — ${actual===expected?'PASS ✓':'FAIL ✗'}`:`Input ${fmt(current)} is not a valid BCD digit (10–15 are don't-care inputs).`;select.value=valid?String(current):'';document.getElementById('netlist').innerHTML=defs.map(([id,ins])=>`<tr><td>${id}</td><td>${ins.join(' , ')}</td><td>${id}</td><td><b>${v[id]}</b></td></tr>`).join('');document.getElementById('truth').innerHTML=Array.from({length:10},(_,i)=>{const s=simulate(i),a=outputs.map(k=>s[k]).join(''),e=fmt(i+3);return `<tr class="${i===current?'active':''}"><td>${i}</td><td>${fmt(i)}</td><td>${e}</td><td>${a}</td><td>${a===e?'✓ PASS':'✗ FAIL'}</td></tr>`}).join('');draw(v)}
-update();
-</script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
+  <title>BCD to Excess-3 Converter (NAND Only) | BCA Computer Architecture Lab</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+      
+      --bg-base: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-card: #ffffff;
+      --bg-subtle: #f8fafc;
+      
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-soft: #eff6ff;
+      --indigo: #4f46e5;
+      
+      --logic-1: #10b981;
+      --logic-1-soft: #ecfdf5;
+      --logic-1-glow: rgba(16, 185, 129, 0.4);
+      
+      --logic-0: #64748b;
+      --logic-0-soft: #f1f5f9;
+      
+      --border: #e2e8f0;
+      --border-dark: #334155;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-white: #ffffff;
+      
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 14px -2px rgba(15,23,42,0.08), 0 2px 6px -1px rgba(15,23,42,0.04);
+      --shadow-lg: 0 10px 25px -3px rgba(15,23,42,0.1), 0 4px 10px -2px rgba(15,23,42,0.04);
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-main);
+      color: var(--text-main);
+      background-color: #f1f5f9;
+      background-image: radial-gradient(at 0% 0%, rgba(37,99,235,0.06) 0px, transparent 50%),
+                        radial-gradient(at 100% 100%, rgba(79,70,229,0.05) 0px, transparent 50%);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding-bottom: 40px;
+    }
+
+    /* Header styling */
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #1e1b4b 100%);
+      color: var(--text-white);
+      padding: clamp(24px, 4vw, 42px) 20px clamp(28px, 5vw, 48px);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.2) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .badge-bca {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+    }
+
+    .badge-lab {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .badge-gate {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    h1 {
+      font-size: clamp(22px, 4.2vw, 36px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+
+    h1 span {
+      background: linear-gradient(90deg, #60a5fa, #a5b4fc, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-desc {
+      color: #cbd5e1;
+      font-size: clamp(14px, 2vw, 16px);
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: -20px auto 0;
+      padding: 0 16px;
+      display: grid;
+      gap: 20px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: clamp(16px, 3vw, 24px);
+      box-shadow: var(--shadow-md);
+      transition: box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: clamp(17px, 2.5vw, 20px);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #0f172a;
+    }
+
+    .card-title .icon-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 16px;
+    }
+
+    /* Section 1: Interactive I/O Control Deck */
+    .control-deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .panel-block {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .panel-subheading {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Bit Switch Cards */
+    .bits-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .bit-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 6px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bit-card.active {
+      border-color: var(--logic-1);
+      background: var(--logic-1-soft);
+      box-shadow: 0 0 14px var(--logic-1-glow);
+    }
+
+    .bit-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .bit-name {
+      font-weight: 800;
+      font-size: 18px;
+      color: #0f172a;
+    }
+
+    .bit-weight {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .bit-card.active .bit-weight {
+      background: #bbf7d0;
+      color: #166534;
+    }
+
+    /* Big Value Display */
+    .bit-value {
+      font-family: var(--font-mono);
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--logic-0);
+      transition: color 0.2s ease;
+    }
+
+    .bit-card.active .bit-value {
+      color: var(--logic-1);
+    }
+
+    /* Dedicated 0/1 Dual Buttons */
+    .dual-btn-group {
+      display: flex;
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-top: 4px;
+    }
+
+    .btn-val {
+      flex: 1;
+      padding: 7px 0;
+      border: 0;
+      background: #ffffff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: var(--text-muted);
+    }
+
+    .btn-val:hover {
+      background: #f1f5f9;
+    }
+
+    .btn-val.selected-0 {
+      background: #475569;
+      color: #ffffff;
+    }
+
+    .btn-val.selected-1 {
+      background: var(--logic-1);
+      color: #ffffff;
+    }
+
+    /* Quick Decimal Selector Row */
+    .presets-container {
+      margin-top: 14px;
+    }
+
+    .preset-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .preset-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .preset-pill {
+      flex: 1 0 calc(20% - 6px);
+      min-width: 44px;
+      padding: 8px 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #1e293b;
+      transition: all 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .preset-pill span.sub {
+      font-size: 9px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .preset-pill:hover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .preset-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    }
+
+    .preset-pill.active span.sub {
+      color: #dbeafe;
+    }
+
+    /* Output Bits Display */
+    .outputs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .output-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 6px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .output-card.active {
+      border-color: #3b82f6;
+      background: #eff6ff;
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.35);
+    }
+
+    .output-name {
+      font-weight: 800;
+      font-size: 18px;
+      color: #1e293b;
+    }
+
+    .output-val {
+      font-family: var(--font-mono);
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--logic-0);
+      transition: color 0.2s ease;
+    }
+
+    .output-card.active .output-val {
+      color: #2563eb;
+    }
+
+    .led-indicator {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #94a3b8;
+      border: 2px solid #cbd5e1;
+      margin-top: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .output-card.active .led-indicator {
+      background: #3b82f6;
+      border-color: #60a5fa;
+      box-shadow: 0 0 10px #3b82f6, 0 0 16px rgba(59, 130, 246, 0.6);
+    }
+
+    /* Stepper & Control Action Buttons */
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .btn-act {
+      flex: 1 1 auto;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    .btn-secondary:hover { background: #cbd5e1; }
+
+    /* Live Conversion Math Banner */
+    .math-banner {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+    }
+
+    .math-banner.valid {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #166534;
+    }
+
+    .math-banner.invalid {
+      background: #fef2f2;
+      border-color: #fca5a5;
+      color: #991b1b;
+    }
+
+    .math-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .math-item .label {
+      font-size: 11px;
+      font-family: var(--font-main);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .math-item .value {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .math-arrow {
+      font-size: 20px;
+      font-weight: 800;
+      color: #94a3b8;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-badge.pass {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #86efac;
+    }
+
+    .status-badge.warn {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+    }
+
+    /* Section 2: Circuit Visualization */
+    .circuit-card {
+      overflow: hidden;
+    }
+
+    .circuit-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .circuit-legend {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-1 { background: var(--logic-1); box-shadow: 0 0 6px var(--logic-1); }
+    .dot-0 { background: var(--logic-0); }
+
+    .zoom-controls {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-zoom {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #334155;
+    }
+
+    .btn-zoom:hover { background: #f1f5f9; }
+
+    .circuit-viewport {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 12px;
+      position: relative;
+      touch-action: pan-x pan-y;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .circuit-viewport::-webkit-scrollbar {
+      height: 8px;
+    }
+    .circuit-viewport::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    .circuit-viewport::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+
+    #circuit-svg {
+      display: block;
+      min-width: 950px;
+      height: auto;
+      max-height: 580px;
+      margin: 0 auto;
+      transition: transform 0.2s ease;
+      transform-origin: top left;
+    }
+
+    /* SVG Gate & Wire Styles */
+    .wire-off { stroke: #475569; stroke-width: 2.2; fill: none; transition: stroke 0.2s ease; opacity: 0.7; }
+    .wire-on  { stroke: #10b981; stroke-width: 2.8; fill: none; transition: stroke 0.2s ease; filter: drop-shadow(0 0 4px #10b981); }
+
+    .gate-bg { fill: #1e293b; stroke: #475569; stroke-width: 1.5; rx: 8px; }
+    .gate-bg.active { stroke: #60a5fa; fill: #1e293b; }
+
+    .gate-label { font-family: var(--font-main); font-size: 11px; font-weight: 700; fill: #93c5fd; }
+    .gate-inputs { font-family: var(--font-mono); font-size: 10px; fill: #94a3b8; }
+    
+    .io-pill { rx: 6px; stroke-width: 1.5; }
+    .io-pill-off { fill: #1e293b; stroke: #475569; }
+    .io-pill-on { fill: #064e3b; stroke: #10b981; }
+
+    .io-text { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+    .io-text-off { fill: #94a3b8; }
+    .io-text-on { fill: #34d399; }
+
+    /* Tables & Responsive Scroll */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: center;
+    }
+
+    thead th {
+      background: #f8fafc;
+      color: #334155;
+      font-weight: 700;
+      padding: 12px 10px;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 10px 10px;
+      border-bottom: 1px solid var(--border);
+      color: #1e293b;
+    }
+
+    tbody tr:hover { background: #f8fafc; }
+
+    tbody tr.active-row {
+      background: #ecfdf5 !important;
+      font-weight: 700;
+    }
+
+    tbody tr.active-row td {
+      border-color: #86efac;
+      color: #065f46;
+    }
+
+    .badge-pass {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Grid for Boolean Expressions & Viva Qs */
+    .two-col-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .two-col-grid { grid-template-columns: 1fr; }
+    }
+
+    .formula-box {
+      font-family: var(--font-mono);
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 2;
+    }
+
+    .formula-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #334155;
+      padding: 6px 0;
+    }
+
+    .formula-line:last-child { border-bottom: 0; }
+    .formula-var { color: #60a5fa; font-weight: 700; }
+    .formula-eq { color: #34d399; }
+
+    /* Accordion for Viva / Practical Info */
+    details {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      background: var(--bg-card);
+      overflow: hidden;
+    }
+
+    summary {
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      background: #f8fafc;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    summary:hover { background: #f1f5f9; }
+
+    .details-content {
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #334155;
+      line-height: 1.6;
+      border-top: 1px solid var(--border);
+      background: #ffffff;
+    }
+
+    /* Footer with Developer Signature */
+    footer {
+      max-width: 1200px;
+      margin: 40px auto 0;
+      padding: 24px 16px 10px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .signature-card {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-md);
+      padding: 18px 24px;
+      display: inline-block;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 16px;
+    }
+
+    .signature-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .signature-name {
+      font-size: 18px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #2563eb, #4f46e5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-top: 2px;
+    }
+
+    .signature-role {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* Mobile Responsive Optimizations */
+    @media (max-width: 640px) {
+      .bits-grid, .outputs-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .bit-card, .output-card {
+        padding: 10px 4px;
+      }
+      .bit-value, .output-val {
+        font-size: 26px;
+      }
+      .preset-pill {
+        flex: 1 0 calc(33.333% - 6px);
+      }
+      .math-banner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media print {
+      header, .controls-row, .preset-pills, .zoom-controls, footer button { display: none !important; }
+      body { background: white; color: black; }
+      .card { box-shadow: none; border: 1px solid #999; page-break-inside: avoid; }
+      .circuit-viewport { background: white; border: 1px solid #ccc; }
+      #circuit-svg { min-width: 100%; max-height: none; }
+      .wire-off { stroke: #999; }
+      .wire-on { stroke: #000; stroke-width: 3; }
+      .gate-bg { fill: #f0f0f0; stroke: #333; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Area -->
+  <header>
+    <div class="header-inner">
+      <div class="badge-bar">
+        <span class="badge badge-bca">🎓 BCA Computer Architecture & Hardware Lab</span>
+        <span class="badge badge-lab">⚡ Digital Electronics Practical</span>
+        <span class="badge badge-gate">🔌 NAND Universal Gate Design</span>
+      </div>
+      <h1>BCD to <span>Excess-3 Code</span> Converter</h1>
+      <p class="header-desc">
+        Interactive real-time logic simulator and gate-level circuit verification using universal NAND gates exclusively. Verify 4-bit binary inputs, observe intermediate gate output voltages, and inspect truth table correctness for lab records.
+      </p>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- Card 1: Interactive Control & Live Outputs -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span class="icon-circle">🕹️</span>
+          1. Interactive BCD Input & Excess-3 Output Console
+        </h2>
+        <div>
+          <button class="btn-act btn-secondary" onclick="window.print()">🖨️ Print Lab Record</button>
+        </div>
+      </div>
+
+      <div class="control-deck">
+        
+        <!-- Left Deck: BCD Input Switches -->
+        <div class="panel-block">
+          <div class="panel-subheading">
+            <span>BCD Input Bits (A B C D)</span>
+            <span style="font-weight:normal; text-transform:none;">Weights: 8, 4, 2, 1</span>
+          </div>
+
+          <div class="bits-grid" id="bits-container">
+            <!-- Dynamically populated bit switches with dedicated 0/1 buttons -->
+          </div>
+
+          <div class="presets-container">
+            <span class="preset-label">Direct Decimal Digit Selector (0 to 9):</span>
+            <div class="preset-pills" id="preset-pills"></div>
+          </div>
+
+          <div class="controls-row">
+            <button class="btn-act btn-secondary" id="btn-prev">◀ Prev</button>
+            <button class="btn-act btn-secondary" id="btn-reset">↺ Reset (0)</button>
+            <button class="btn-act btn-primary" id="btn-next">Next Digit ▶</button>
+            <button class="btn-act btn-secondary" id="btn-random">🎲 Random</button>
+          </div>
+        </div>
+
+        <!-- Right Deck: Live Excess-3 Outputs & Calculation -->
+        <div class="panel-block">
+          <div class="panel-subheading">
+            <span>Excess-3 (XS-3) Output Bits (W X Y Z)</span>
+            <span style="font-weight:normal; text-transform:none;">Weights: 8, 4, 2, 1</span>
+          </div>
+
+          <div class="outputs-grid" id="outputs-container">
+            <!-- Dynamically populated output cards -->
+          </div>
+
+          <!-- Live Conversion Formula Card -->
+          <div class="math-banner valid" id="math-banner">
+            <div class="math-item">
+              <span class="label">BCD Input</span>
+              <span class="value" id="math-bcd">0000 (0)</span>
+            </div>
+            <span class="math-arrow">+ 3 =</span>
+            <div class="math-item">
+              <span class="label">Excess-3 Output</span>
+              <span class="value" id="math-xs3">0011 (3)</span>
+            </div>
+            <div>
+              <span class="status-badge pass" id="math-status">✓ VERIFIED PASS</span>
+            </div>
+          </div>
+
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.5;">
+            ℹ️ <b>Excess-3 Rule:</b> Formed by adding binary <code>0011</code> (3) to each BCD digit. Codes <code>1010</code> to <code>1111</code> (10–15) are invalid BCD digits and treated as Don't-Care conditions (X).
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Card 2: Gate-Level NAND Circuit Schematic -->
+    <section class="card circuit-card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span class="icon-circle">⚡</span>
+          2. Complete NAND-Only Circuit Schematic (Live Voltage Propagation)
+        </h2>
+        <div class="circuit-toolbar">
+          <div class="circuit-legend">
+            <div class="legend-item"><span class="legend-dot dot-1"></span> Logic HIGH (1)</div>
+            <div class="legend-item"><span class="legend-dot dot-0"></span> Logic LOW (0)</div>
+          </div>
+          <div class="zoom-controls">
+            <button class="btn-zoom" id="zoom-in" title="Zoom In">+</button>
+            <button class="btn-zoom" id="zoom-out" title="Zoom Out">−</button>
+            <button class="btn-zoom" id="zoom-reset" title="Fit View">⟲</button>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+        Every functional block represents a 2-input or multi-input NAND gate. Inverters are realized by tying inputs together: <code>NAND(X, X) = X'</code>. Green lines represent active HIGH signals carrying logic 1.
+      </p>
+
+      <div class="circuit-viewport" id="circuit-viewport">
+        <svg id="circuit-svg" viewBox="0 0 1080 660" role="img" aria-label="NAND Circuit Schematic"></svg>
+      </div>
+    </section>
+
+    <!-- Card 3 & 4: Boolean Expressions & Lab Practical Steps -->
+    <div class="two-col-grid">
+      
+      <!-- Boolean Logic Minimization -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="icon-circle">📐</span>
+            3. Minimized Boolean Equations
+          </h2>
+        </div>
+        
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Simplified using Karnaugh Maps (K-Maps) taking inputs 10–15 as don't-cares, then converted to universal NAND form via De Morgan's theorem:
+        </p>
+
+        <div class="formula-box">
+          <div class="formula-line">
+            <span class="formula-var">W (Bit 3)</span>
+            <span class="formula-eq">A + BC + BD = NAND(A', (BC)', (BD)')</span>
+          </div>
+          <div class="formula-line">
+            <span class="formula-var">X (Bit 2)</span>
+            <span class="formula-eq">B'C + B'D + BC'D' = NAND((B'C)', (B'D)', (BC'D')')</span>
+          </div>
+          <div class="formula-line">
+            <span class="formula-var">Y (Bit 1)</span>
+            <span class="formula-eq">CD + C'D' = NAND((CD)', (C'D')')</span>
+          </div>
+          <div class="formula-line">
+            <span class="formula-var">Z (Bit 0)</span>
+            <span class="formula-eq">D' = NAND(D, D)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Practical Procedure & Viva Guide -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="icon-circle">🧪</span>
+            4. BCA Practical Procedure & Viva Prep
+          </h2>
+        </div>
+
+        <details open>
+          <summary>Lab Procedure Steps</summary>
+          <div class="details-content">
+            <ol style="padding-left: 20px; line-height: 1.8;">
+              <li>Apply 4-bit binary input A, B, C, D using logic input switches.</li>
+              <li>Observe the output of intermediate NAND gates (inverters & AND terms).</li>
+              <li>Verify the final outputs W, X, Y, Z on the LED indicators.</li>
+              <li>Confirm that output decimal = input decimal + 3.</li>
+              <li>Record values in the lab observation table.</li>
+            </ol>
+          </div>
+        </details>
+
+        <details>
+          <summary>Viva Voce: Why is Excess-3 a Self-Complementing Code?</summary>
+          <div class="details-content">
+            Excess-3 is self-complementing because the 9's complement of a decimal digit corresponds directly to the 1's complement of its Excess-3 code. This property significantly simplifies 9's complement subtraction in computer arithmetic logic units (ALU).
+          </div>
+        </details>
+
+        <details>
+          <summary>Viva Voce: Why use only NAND Gates?</summary>
+          <div class="details-content">
+            NAND is a <b>universal gate</b>. Any basic logic operation (NOT, AND, OR, NOR, XOR, XNOR) can be fabricated using only NAND gates, reducing IC inventory and fabrication costs on breadboards or silicon dies.
+          </div>
+        </details>
+      </section>
+
+    </div>
+
+    <!-- Card 5: Comprehensive Truth Table -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <span class="icon-circle">📊</span>
+          5. BCD to Excess-3 Verification Truth Table
+        </h2>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Decimal</th>
+              <th>BCD Input (A B C D)</th>
+              <th>Theoretical Excess-3 (W X Y Z)</th>
+              <th>NAND Circuit Output</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="truth-table-body">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Developer Signature & Footer -->
+  <footer>
+    <div class="signature-card">
+      <div class="signature-title">Designed &amp; Developed for BCA Practical Lab by</div>
+      <div class="signature-name">Mr. Himanshu Jaiswara</div>
+      <div class="signature-role">BCA Computer Architecture &amp; Digital Electronics Practical Laboratory</div>
+    </div>
+    <p style="font-size: 12px; color: #94a3b8;">
+      Universal NAND Logic Simulator • Built with HTML5 Canvas / SVG &amp; Pure Vanilla JavaScript
+    </p>
+  </footer>
+
+  <script>
+    // --- Logic Definitions & Circuit Topology ---
+    // Gate definitions: [id, [inputs...], label]
+    const defs = [
+      ['nA',     ['A', 'A'],              "G1: INV(A)"],
+      ['nB',     ['B', 'B'],              "G2: INV(B)"],
+      ['nC',     ['C', 'C'],              "G3: INV(C)"],
+      ['nD',     ['D', 'D'],              "G4: INV(D)"],
+      ['tBC',    ['B', 'C'],              "G5: (B·C)'"],
+      ['tBD',    ['B', 'D'],              "G6: (B·D)'"],
+      ['W',      ['nA', 'tBC', 'tBD'],    "G7: OUT W"],
+      ['tBNC',   ['nB', 'C'],             "G8: (B'·C)'"],
+      ['tBND',   ['nB', 'D'],             "G9: (B'·D)'"],
+      ['tBCND',  ['B', 'nC', 'nD'],       "G10: (B·C'·D')'"],
+      ['X',      ['tBNC', 'tBND', 'tBCND'],"G11: OUT X"],
+      ['tCD',    ['C', 'D'],              "G12: (C·D)'"],
+      ['tNCND',  ['nC', 'nD'],            "G13: (C'·D')'"],
+      ['Y',      ['tCD', 'tNCND'],        "G14: OUT Y"],
+      ['Z',      ['nD', 'nD'],            "G15: OUT Z"]
+    ];
+
+    const inputNames = ['A', 'B', 'C', 'D'];
+    const outputNames = ['W', 'X', 'Y', 'Z'];
+    const bitWeights = { A: 8, B: 4, C: 2, D: 1, W: 8, X: 4, Y: 2, Z: 1 };
+
+    let currentVal = 0; // 0 to 15 (0 to 9 valid BCD)
+    let zoomLevel = 1.0;
+
+    // Format number to 4-bit binary
+    const toBin = (n, bits = 4) => (n >>> 0).toString(2).padStart(bits, '0');
+
+    // Circuit Logic Simulator Function
+    function simulate(val) {
+      const state = {
+        A: (val >> 3) & 1,
+        B: (val >> 2) & 1,
+        C: (val >> 1) & 1,
+        D: val & 1
+      };
+
+      for (const [id, ins] of defs) {
+        // NAND logic: 0 if ALL inputs are 1, else 1
+        const allOne = ins.every(sig => state[sig] === 1);
+        state[id] = allOne ? 0 : 1;
+      }
+      return state;
+    }
+
+    // Initialize UI controls
+    function initUI() {
+      // 1. Build Bit Switch Cards with explicit 0 and 1 buttons
+      const bitsContainer = document.getElementById('bits-container');
+      bitsContainer.innerHTML = '';
+      
+      inputNames.forEach((name, idx) => {
+        const card = document.createElement('div');
+        card.className = 'bit-card';
+        card.id = `bit-card-${name}`;
+        
+        card.innerHTML = `
+          <div class="bit-header">
+            <span class="bit-name">${name}</span>
+            <span class="bit-weight">${bitWeights[name]}</span>
+          </div>
+          <div class="bit-value" id="val-${name}">0</div>
+          <div class="dual-btn-group">
+            <button type="button" class="btn-val selected-0" id="btn-${name}-0" aria-label="Set ${name} to 0">0</button>
+            <button type="button" class="btn-val" id="btn-${name}-1" aria-label="Set ${name} to 1">1</button>
+          </div>
+        `;
+        
+        bitsContainer.appendChild(card);
+
+        // Click handlers for 0 and 1 buttons
+        document.getElementById(`btn-${name}-0`).onclick = (e) => {
+          e.stopPropagation();
+          setBit(idx, 0);
+        };
+        document.getElementById(`btn-${name}-1`).onclick = (e) => {
+          e.stopPropagation();
+          setBit(idx, 1);
+        };
+
+        // Clicking card body also toggles
+        card.onclick = () => {
+          toggleBit(idx);
+        };
+      });
+
+      // 2. Build Output Cards
+      const outputsContainer = document.getElementById('outputs-container');
+      outputsContainer.innerHTML = '';
+      outputNames.forEach(name => {
+        const card = document.createElement('div');
+        card.className = 'output-card';
+        card.id = `out-card-${name}`;
+        card.innerHTML = `
+          <div class="output-name">${name} (${bitWeights[name]})</div>
+          <div class="output-val" id="val-out-${name}">0</div>
+          <div class="led-indicator" id="led-${name}"></div>
+        `;
+        outputsContainer.appendChild(card);
+      });
+
+      // 3. Build Decimal Preset Pills (0-9)
+      const presetsContainer = document.getElementById('preset-pills');
+      presetsContainer.innerHTML = '';
+      for (let i = 0; i < 10; i++) {
+        const pill = document.createElement('button');
+        pill.className = `preset-pill ${i === 0 ? 'active' : ''}`;
+        pill.id = `pill-${i}`;
+        pill.innerHTML = `<b>${i}</b><span class="sub">${toBin(i)}</span>`;
+        pill.onclick = () => {
+          currentVal = i;
+          render();
+        };
+        presetsContainer.appendChild(pill);
+      }
+
+      // 4. Stepper Buttons
+      document.getElementById('btn-prev').onclick = () => {
+        currentVal = (currentVal - 1 + 10) % 10;
+        render();
+      };
+      document.getElementById('btn-next').onclick = () => {
+        currentVal = (currentVal + 1) % 10;
+        render();
+      };
+      document.getElementById('btn-reset').onclick = () => {
+        currentVal = 0;
+        render();
+      };
+      document.getElementById('btn-random').onclick = () => {
+        currentVal = Math.floor(Math.random() * 10);
+        render();
+      };
+
+      // 5. Zoom Buttons
+      const svg = document.getElementById('circuit-svg');
+      document.getElementById('zoom-in').onclick = () => {
+        zoomLevel = Math.min(zoomLevel + 0.15, 1.8);
+        svg.style.transform = `scale(${zoomLevel})`;
+      };
+      document.getElementById('zoom-out').onclick = () => {
+        zoomLevel = Math.max(zoomLevel - 0.15, 0.7);
+        svg.style.transform = `scale(${zoomLevel})`;
+      };
+      document.getElementById('zoom-reset').onclick = () => {
+        zoomLevel = 1.0;
+        svg.style.transform = `scale(1.0)`;
+      };
+
+      // 6. Build Truth Table
+      buildTruthTable();
+    }
+
+    function toggleBit(bitIdx) {
+      currentVal ^= (1 << (3 - bitIdx));
+      render();
+    }
+
+    function setBit(bitIdx, bitVal) {
+      const mask = 1 << (3 - bitIdx);
+      if (bitVal === 1) currentVal |= mask;
+      else currentVal &= ~mask;
+      render();
+    }
+
+    function buildTruthTable() {
+      const tbody = document.getElementById('truth-table-body');
+      tbody.innerHTML = '';
+
+      for (let i = 0; i < 10; i++) {
+        const sim = simulate(i);
+        const bcdStr = toBin(i);
+        const expectedXS3 = toBin(i + 3);
+        const circuitXS3 = outputNames.map(o => sim[o]).join('');
+        const isPass = expectedXS3 === circuitXS3;
+
+        const row = document.createElement('tr');
+        row.id = `tr-digit-${i}`;
+        row.style.cursor = 'pointer';
+        row.onclick = () => { currentVal = i; render(); };
+        row.innerHTML = `
+          <td><b>${i}</b></td>
+          <td style="font-family: var(--font-mono);">${bcdStr}</td>
+          <td style="font-family: var(--font-mono); font-weight:700; color: #2563eb;">${expectedXS3}</td>
+          <td style="font-family: var(--font-mono); font-weight:700;">${circuitXS3}</td>
+          <td><span class="badge-pass">${isPass ? '✓ PASS' : '✗ FAIL'}</span></td>
+        `;
+        tbody.appendChild(row);
+      }
+    }
+
+    // Draw Complete Gate Circuit inside SVG
+    function drawCircuit(simState) {
+      const svg = document.getElementById('circuit-svg');
+      
+      // Node positions:
+      // Column 0: Inputs (X: 30)
+      // Column 1: Inverters (X: 230)
+      // Column 2: AND terms (X: 500)
+      // Column 3: Outputs (X: 840)
+      const pos = {
+        A: { x: 30, y: 80 },
+        B: { x: 30, y: 220 },
+        C: { x: 30, y: 360 },
+        D: { x: 30, y: 500 },
+
+        nA: { x: 230, y: 60 },
+        nB: { x: 230, y: 160 },
+        nC: { x: 230, y: 260 },
+        nD: { x: 230, y: 360 },
+
+        tBC:   { x: 500, y: 70 },
+        tBD:   { x: 500, y: 140 },
+        tBNC:  { x: 500, y: 220 },
+        tBND:  { x: 500, y: 290 },
+        tBCND: { x: 500, y: 370 },
+        tCD:   { x: 500, y: 460 },
+        tNCND: { x: 500, y: 540 },
+
+        W: { x: 840, y: 90 },
+        X: { x: 840, y: 270 },
+        Y: { x: 840, y: 450 },
+        Z: { x: 840, y: 560 }
+      };
+
+      let wiresHtml = '';
+      let gatesHtml = '';
+
+      // Draw Connection Wires with Dynamic Logic Colors
+      for (const [gateId, ins] of defs) {
+        const dest = pos[gateId];
+        const numInputs = ins.length;
+
+        ins.forEach((sourceId, inputIdx) => {
+          const src = pos[sourceId];
+          const isSourceInput = inputNames.includes(sourceId);
+          const isSourceGate = !isSourceInput;
+
+          const startX = src.x + (isSourceInput ? 80 : 130);
+          const startY = src.y + 22;
+
+          const pinOffset = (inputIdx - (numInputs - 1) / 2) * 10;
+          const endX = dest.x;
+          const endY = dest.y + 22 + pinOffset;
+
+          const signalVal = simState[sourceId];
+          const wireClass = signalVal === 1 ? 'wire-on' : 'wire-off';
+
+          // Elbow orthogonal path
+          const midX = startX + Math.max(14, (endX - startX) * 0.45);
+          wiresHtml += `<path class="${wireClass}" d="M ${startX} ${startY} H ${midX} V ${endY} H ${endX}" />`;
+        });
+      }
+
+      // Draw Input Blocks
+      inputNames.forEach(name => {
+        const p = pos[name];
+        const val = simState[name];
+        const pillClass = val === 1 ? 'io-pill-on' : 'io-pill-off';
+        const textClass = val === 1 ? 'io-text-on' : 'io-text-off';
+
+        gatesHtml += `
+          <g>
+            <rect class="io-pill ${pillClass}" x="${p.x}" y="${p.y}" width="80" height="44" />
+            <text class="io-text ${textClass}" x="${p.x + 40}" y="${p.y + 27}" text-anchor="middle">
+              ${name} = ${val}
+            </text>
+          </g>
+        `;
+      });
+
+      // Draw NAND Gates
+      defs.forEach(([id, ins, label]) => {
+        const p = pos[id];
+        const val = simState[id];
+        const isOutput = outputNames.includes(id);
+
+        const activeClass = val === 1 ? 'active' : '';
+        const width = isOutput ? 150 : 130;
+        const fillPill = val === 1 ? '#064e3b' : '#1e293b';
+        const strokePill = val === 1 ? '#10b981' : '#475569';
+        const textPill = val === 1 ? '#34d399' : '#94a3b8';
+
+        gatesHtml += `
+          <g>
+            <!-- Gate Box -->
+            <rect class="gate-bg ${activeClass}" x="${p.x}" y="${p.y}" width="${width}" height="44" rx="8" />
+            <text class="gate-label" x="${p.x + (width/2) - 10}" y="${p.y + 18}" text-anchor="middle">
+              ${label}
+            </text>
+            <text class="gate-inputs" x="${p.x + (width/2) - 10}" y="${p.y + 33}" text-anchor="middle">
+              NAND(${ins.join(',')})
+            </text>
+            
+            <!-- Output Pin Value Bubble -->
+            <circle cx="${p.x + width + 4}" cy="${p.y + 22}" r="11" fill="${fillPill}" stroke="${strokePill}" stroke-width="2" />
+            <text x="${p.x + width + 4}" y="${p.y + 26}" text-anchor="middle" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="${textPill}">
+              ${val}
+            </text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = wiresHtml + gatesHtml;
+    }
+
+    // Update entire screen state
+    function render() {
+      const sim = simulate(currentVal);
+      const isValid = currentVal < 10;
+
+      // 1. Update Input Bits Cards
+      inputNames.forEach((name, idx) => {
+        const bitVal = sim[name];
+        const card = document.getElementById(`bit-card-${name}`);
+        const valEl = document.getElementById(`val-${name}`);
+        const btn0 = document.getElementById(`btn-${name}-0`);
+        const btn1 = document.getElementById(`btn-${name}-1`);
+
+        card.classList.toggle('active', bitVal === 1);
+        valEl.textContent = bitVal;
+
+        btn0.className = `btn-val ${bitVal === 0 ? 'selected-0' : ''}`;
+        btn1.className = `btn-val ${bitVal === 1 ? 'selected-1' : ''}`;
+      });
+
+      // 2. Update Output Bits Cards
+      outputNames.forEach(name => {
+        const bitVal = sim[name];
+        const card = document.getElementById(`out-card-${name}`);
+        const valEl = document.getElementById(`val-out-${name}`);
+        const led = document.getElementById(`led-${name}`);
+
+        card.classList.toggle('active', bitVal === 1);
+        valEl.textContent = bitVal;
+      });
+
+      // 3. Update Preset Pills
+      for (let i = 0; i < 10; i++) {
+        const pill = document.getElementById(`pill-${i}`);
+        if (pill) pill.classList.toggle('active', i === currentVal);
+      }
+
+      // 4. Update Math Banner
+      const bcdStr = toBin(currentVal);
+      const circuitXS3 = outputNames.map(o => sim[o]).join('');
+      const expectedXS3 = isValid ? toBin(currentVal + 3) : '----';
+      
+      const mathBanner = document.getElementById('math-banner');
+      const mathBcd = document.getElementById('math-bcd');
+      const mathXs3 = document.getElementById('math-xs3');
+      const mathStatus = document.getElementById('math-status');
+
+      mathBcd.textContent = `${bcdStr} (Decimal ${currentVal})`;
+      
+      if (isValid) {
+        mathBanner.className = 'math-banner valid';
+        mathXs3.textContent = `${circuitXS3} (Decimal ${currentVal + 3})`;
+        mathStatus.className = 'status-badge pass';
+        mathStatus.textContent = '✓ LOGIC VERIFIED PASS';
+      } else {
+        mathBanner.className = 'math-banner invalid';
+        mathXs3.textContent = `${circuitXS3} (Don't Care)`;
+        mathStatus.className = 'status-badge warn';
+        mathStatus.textContent = '⚠ INVALID BCD (10–15 DON\'T CARE)';
+      }
+
+      // 5. Highlight Active Row in Truth Table
+      for (let i = 0; i < 10; i++) {
+        const row = document.getElementById(`tr-digit-${i}`);
+        if (row) {
+          row.classList.toggle('active-row', i === currentVal);
+        }
+      }
+
+      // 6. Redraw Circuit Schematic
+      drawCircuit(sim);
+    }
+
+    // Initialize on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initUI();
+      render();
+    });
+  </script>
+</body>
+</html>
